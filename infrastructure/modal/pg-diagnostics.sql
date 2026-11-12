@@ -1,0 +1,38 @@
+-- Disposable database only. Map normalized statement text to fixed labels before exporting.
+CREATE SCHEMA sdu_diagnostics;
+CREATE EXTENSION pg_stat_statements WITH SCHEMA sdu_diagnostics;
+CREATE FUNCTION sdu_diagnostics.step(statement text) RETURNS text
+LANGUAGE sql IMMUTABLE PARALLEL SAFE RETURN CASE
+  WHEN statement IS NULL OR statement = '' THEN 'unknown'
+  WHEN statement ~* 'lock_student_term|student_terms.*FOR (NO KEY )?UPDATE' THEN 'student_term_lock'
+  WHEN statement ~* 'course_sections.*FOR (NO KEY )?UPDATE' THEN 'section_lock'
+  WHEN statement ~* 'UPDATE sections[.]course_sections' THEN 'section_counter_write'
+  WHEN statement ~* 'INSERT INTO operations[.]idempotency_records' THEN 'idempotency_claim'
+  WHEN statement ~* 'INSERT INTO audit[.]audit_events' AND statement ~* 'UPDATE operations[.]idempotency_records' THEN 'audit_and_idempotency_complete'
+  WHEN statement ~* 'UPDATE operations[.]idempotency_records' THEN 'idempotency_complete'
+  WHEN statement ~* 'operations[.]idempotency_records' THEN 'idempotency_read_or_replay'
+  WHEN statement ~* 'spring_session' AND statement ~* '^\s*(UPDATE|INSERT|DELETE)' THEN 'session_jdbc_write'
+  WHEN statement ~* 'spring_session' THEN 'session_jdbc_read'
+  WHEN statement ~* 'INSERT INTO enrollment[.]enrollments' THEN 'enrollment_insert'
+  WHEN statement ~* 'UPDATE enrollment[.]enrollments' THEN 'withdrawal_update'
+  WHEN statement ~* 'audit[.]audit_events' THEN 'audit_write'
+  WHEN statement ~* 'protect.*term|FOR SHARE' THEN 'registration_gate'
+  WHEN statement ~* '^\s*COMMIT' THEN 'commit'
+  WHEN statement ~* '^\s*ROLLBACK' THEN 'rollback'
+  WHEN statement ~* '^\s*BEGIN' THEN 'begin'
+  WHEN statement ~* 'set_config.*lock_timeout' THEN 'transaction_deadlines'
+  WHEN statement ~* 'FROM students[.]eligibility_snapshots' AND statement ~* 'JOIN students[.]completed_courses' THEN 'student_evidence_joined'
+  WHEN statement ~* 'FROM students[.]eligibility_snapshots' THEN 'student_snapshot'
+  WHEN statement ~* 'FROM students[.]completed_courses' THEN 'student_completions'
+  WHEN statement ~* 'FROM catalog[.]offering_prerequisites' THEN 'offering_prerequisites'
+  WHEN statement ~* 'SELECT offering_id,credits FROM catalog[.]course_offerings' THEN 'active_offering_credits'
+  WHEN statement ~* 'SELECT offering_id,term_id,credits,publication_status FROM catalog[.]course_offerings' THEN 'offering_details'
+  WHEN statement ~* 'FROM rules[.]registration_policies' THEN 'academic_policy'
+  WHEN statement ~* 'FROM rules[.]registration_windows' THEN 'decision_window'
+  WHEN statement ~* 'FROM rules[.]offering_policy_eligibility' THEN 'offering_eligibility'
+  WHEN statement ~* 'FROM sections[.]section_meetings' THEN 'section_meetings'
+  WHEN statement ~* 'FROM sections[.]course_sections' THEN 'section_read'
+  WHEN statement ~* '^\s*SELECT clock_timestamp' THEN 'decision_clock'
+  WHEN statement ~* 'FROM identity[.]test_accounts.*principal_id' THEN 'account_validation'
+  WHEN statement ~* 'enrollment[.]enrollments' THEN 'enrollment_read'
+  ELSE 'other' END;

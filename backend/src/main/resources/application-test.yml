@@ -1,0 +1,10 @@
+spring:
+  session:
+    jdbc:
+      cleanup-cron: "-"
+  datasource:
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 0
+      connection-timeout: 1000
+      validation-timeout: 500

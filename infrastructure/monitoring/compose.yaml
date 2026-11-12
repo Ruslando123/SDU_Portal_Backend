@@ -1,0 +1,83 @@
+name: sdu-registration-benchmark
+services:
+  postgres:
+    image: postgres:18.6-alpine@sha256:123b17998ccaf47e53b502e8c6a1e79afd8f579c6f3eec83c563da026f957395
+    environment:
+      POSTGRES_DB: portal_benchmark
+      POSTGRES_USER: benchmark_migrator
+      POSTGRES_PASSWORD: ${BENCH_DB_PASSWORD:?Run benchmark init first}
+    command: [postgres, -c, shared_preload_libraries=pg_stat_statements, -c, track_io_timing=on, -c, pg_stat_statements.track_utility=off, -c, shared_buffers=96MB, -c, max_connections=60]
+    ports: ["127.0.0.1:16432:5432"]
+    volumes: [benchmark_pg:/var/lib/postgresql]
+    mem_limit: 384m
+    cpus: 1.5
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U benchmark_migrator -d portal_benchmark']
+      interval: 2s
+      retries: 30
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: ../infrastructure/monitoring/Dockerfile.backend
+    image: sdu-registration-benchmark-backend:${BENCH_BACKEND_TAG:-phase7a}
+    environment:
+      SPRING_PROFILES_ACTIVE: dev,benchmark
+      DB_URL: jdbc:postgresql://postgres:5432/portal_benchmark
+      DB_MIGRATION_USERNAME: benchmark_migrator
+      DB_MIGRATION_PASSWORD: ${BENCH_DB_PASSWORD}
+      DB_RUNTIME_PASSWORD: ${BENCH_RUNTIME_PASSWORD}
+      DB_POOL_MAX_SIZE: ${BENCH_POOL_SIZE:-10}
+      DB_POOL_MIN_IDLE: "2"
+      DB_CONNECTION_TIMEOUT_MS: ${BENCH_POOL_TIMEOUT_MS:-3000}
+      SPRING_DATASOURCE_HIKARI_VALIDATION_TIMEOUT: ${BENCH_VALIDATION_TIMEOUT:-1000}
+      PORTAL_METRICS_PASSWORD: ${BENCH_METRICS_PASSWORD}
+      ENROLLMENT_BENCHMARK_EARLY_SECTION_LOCKING: ${BENCH_EARLY_LOCKING:-false}
+    ports: ["127.0.0.1:18080:8080", "127.0.0.1:19091:9090"]
+    # Management is loopback-only on the host and additionally requires its separate read-only credential.
+    depends_on:
+      postgres: {condition: service_healthy}
+    mem_limit: 640m
+    cpus: 2
+    stop_grace_period: 15s
+  prometheus:
+    image: prom/prometheus:v3.16.0
+    command: [--config.file=/etc/prometheus/prometheus.yml, --storage.tsdb.retention.time=24h, --storage.tsdb.retention.size=256MB]
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../.local/benchmark/metrics-password:/run/secrets/metrics-password:ro
+      - benchmark_prometheus:/prometheus
+    ports: ["127.0.0.1:19090:9090"]
+    mem_limit: 192m
+    cpus: 0.5
+  grafana:
+    image: grafana/grafana:13.3.0
+    environment:
+      GF_SECURITY_ADMIN_USER: benchmark-admin
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana-password
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ../.local/benchmark/grafana-password:/run/secrets/grafana-password:ro
+      - benchmark_grafana:/var/lib/grafana
+    ports: ["127.0.0.1:13000:3000"]
+    mem_limit: 256m
+    cpus: 0.5
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.20.1
+    environment:
+      DATA_SOURCE_NAME: postgresql://benchmark_monitor:${BENCH_MONITOR_PASSWORD}@postgres:5432/portal_benchmark?sslmode=disable
+    command: [--extend.query-path=/etc/postgres-exporter/queries.yml, --disable-default-metrics]
+    volumes: [./postgres/queries.yml:/etc/postgres-exporter/queries.yml:ro]
+    depends_on:
+      postgres: {condition: service_healthy}
+    mem_limit: 64m
+    cpus: 0.25
+volumes:
+  benchmark_pg:
+  benchmark_prometheus:
+  benchmark_grafana:

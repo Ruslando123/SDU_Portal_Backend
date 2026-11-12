@@ -1,0 +1,50 @@
+# OS/editor metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
+*.iml
+*.swp
+*~
+
+# Local credentials; keep future sanitized examples trackable
+.env
+.env.*
+!.env.example
+!**/.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Future JVM builds
+.gradle/
+.kotlin/
+build/
+out/
+target/
+
+# Future Next.js/Node builds
+node_modules/
+.next/
+.turbo/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local runtime state and generated benchmark output
+*.log
+infrastructure/.local/
+infrastructure/data/
+infrastructure/k6/results/
+
+# Dependency lockfiles and future Gradle wrapper files are intentionally trackable.
+
+# Local Python benchmark tooling
+__pycache__/
+*.py[cod]
+.venv/

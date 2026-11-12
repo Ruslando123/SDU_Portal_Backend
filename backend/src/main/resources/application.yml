@@ -1,0 +1,100 @@
+spring:
+  application:
+    name: sdu-course-registration-backend
+  datasource:
+    url: ${DB_URL}
+    username: portal_runtime
+    password: ${DB_RUNTIME_PASSWORD}
+    hikari:
+      pool-name: sdu-runtime
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:1}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:3000}
+      validation-timeout: 1000
+      auto-commit: true
+      data-source-properties:
+        connectTimeout: 3
+        socketTimeout: 20
+  flyway:
+    enabled: true
+    url: ${DB_URL}
+    user: ${DB_MIGRATION_USERNAME}
+    password: ${DB_MIGRATION_PASSWORD}
+    default-schema: public
+    locations: classpath:db/migration
+    clean-disabled: true
+    validate-migration-naming: true
+    baseline-on-migrate: false
+  sql:
+    init:
+      mode: never
+  jpa:
+    hibernate:
+      ddl-auto: none
+  session:
+    jdbc:
+      initialize-schema: never
+      table-name: identity.spring_session
+    timeout: 30m
+
+server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: never
+    include-stacktrace: never
+  servlet:
+    session:
+      tracking-modes: cookie
+      cookie:
+        http-only: true
+        secure: true
+        same-site: lax
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db
+
+logging:
+  structured:
+    format:
+      console: ecs
+
+# Correctness-stage bounds, not throughput claims. Override only with measured deployment budgets.
+enrollment:
+  admission: 64
+  jdbc-admission-enabled: ${ENROLLMENT_JDBC_ADMISSION_ENABLED:false}
+  max-attempts: 3
+  deadline-ms: 15000
+  lock-timeout-ms: 2000
+  statement-timeout-ms: 5000
+  transaction-timeout-seconds: 10
+  retention-seconds: 86400
+
+# Experimental, disabled by default. Credentials are injected only into the server process.
+portal:
+  write-behind:
+    enabled: ${PORTAL_WRITE_BEHIND_ENABLED:false}
+    synthetic-only: ${PORTAL_WRITE_BEHIND_SYNTHETIC_ONLY:false}
+    host: ${PORTAL_WRITE_BEHIND_HOST:localhost}
+    port: ${PORTAL_WRITE_BEHIND_PORT:5671}
+    username: ${PORTAL_WRITE_BEHIND_USERNAME:portal}
+    password: ${PORTAL_WRITE_BEHIND_PASSWORD:}
+    virtual-host: ${PORTAL_WRITE_BEHIND_VIRTUAL_HOST:/portal}
+    queue: ${PORTAL_WRITE_BEHIND_QUEUE:portal.decisions.v1}
+    ca-file: ${PORTAL_WRITE_BEHIND_CA_FILE:}
+    max-runtime-seconds: ${PORTAL_WRITE_BEHIND_MAX_RUNTIME_SECONDS:900}
+    max-decisions: ${PORTAL_WRITE_BEHIND_MAX_DECISIONS:100000}
+    projector-mode: ${PORTAL_WRITE_BEHIND_PROJECTOR_MODE:jdbc}

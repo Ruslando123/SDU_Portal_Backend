@@ -1,0 +1,36 @@
+portal_pg_activity:
+  query: "SELECT coalesce(state,'unknown') AS state, count(*) AS connections FROM pg_stat_activity WHERE datname=current_database() GROUP BY state"
+  metrics:
+    - state: {usage: LABEL, description: Bounded backend state}
+    - connections: {usage: GAUGE, description: Connections by state}
+portal_pg_wait:
+  query: "SELECT coalesce(wait_event_type,'CPU') AS type, coalesce(wait_event,'Running') AS event, count(*) AS connections FROM pg_stat_activity WHERE datname=current_database() GROUP BY wait_event_type,wait_event"
+  metrics:
+    - type: {usage: LABEL, description: PostgreSQL wait class}
+    - event: {usage: LABEL, description: PostgreSQL bounded wait event}
+    - connections: {usage: GAUGE, description: Connections by wait}
+portal_pg_statements:
+  query: "SELECT coalesce(sum(calls),0) AS calls, coalesce(sum(total_exec_time),0)/1000 AS execution_seconds, coalesce(sum(shared_blks_hit),0) AS blocks_hit, coalesce(sum(shared_blks_read),0) AS blocks_read, coalesce(sum(shared_blk_read_time+local_blk_read_time+temp_blk_read_time),0)/1000 AS read_seconds, coalesce(sum(shared_blk_write_time+local_blk_write_time+temp_blk_write_time),0)/1000 AS write_seconds FROM pg_stat_statements WHERE userid=(SELECT oid FROM pg_roles WHERE rolname='portal_runtime') AND dbid=(SELECT oid FROM pg_database WHERE datname=current_database())"
+  metrics:
+    - calls: {usage: COUNTER, description: Statement calls}
+    - execution_seconds: {usage: COUNTER, description: SQL execution seconds}
+    - blocks_hit: {usage: COUNTER, description: Shared blocks hit}
+    - blocks_read: {usage: COUNTER, description: Shared blocks read}
+    - read_seconds: {usage: COUNTER, description: Block read seconds}
+    - write_seconds: {usage: COUNTER, description: Block write seconds}
+portal_pg_database:
+  query: "SELECT xact_commit AS commits,xact_rollback AS rollbacks,deadlocks,temp_bytes,blks_hit,blks_read FROM pg_stat_database WHERE datname=current_database()"
+  metrics:
+    - commits: {usage: COUNTER, description: Commits}
+    - rollbacks: {usage: COUNTER, description: Rollbacks}
+    - deadlocks: {usage: COUNTER, description: Deadlocks}
+    - temp_bytes: {usage: COUNTER, description: Temporary bytes}
+    - blks_hit: {usage: COUNTER, description: Buffer hits}
+    - blks_read: {usage: COUNTER, description: Buffer reads}
+
+portal_pg_slow:
+  query: "SELECT count(*) FILTER (WHERE mean_exec_time>10 AND calls>=10) AS families,coalesce(max(mean_exec_time) FILTER (WHERE calls>=10),0) AS slowest_mean_ms,coalesce(max(max_exec_time),0) AS max_ms FROM pg_stat_statements WHERE userid=(SELECT oid FROM pg_roles WHERE rolname='portal_runtime') AND dbid=(SELECT oid FROM pg_database WHERE datname=current_database())"
+  metrics:
+    - families: {usage: GAUGE, description: Statement families averaging above ten milliseconds}
+    - slowest_mean_ms: {usage: GAUGE, description: Slowest repeatedly observed statement mean milliseconds}
+    - max_ms: {usage: GAUGE, description: Maximum statement milliseconds}

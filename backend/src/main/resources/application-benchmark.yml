@@ -1,0 +1,49 @@
+# Isolated Compose benchmark only; activate together with dev, never real-account production.
+server:
+  address: 0.0.0.0
+  port: 8080
+  tomcat:
+    threads:
+      max: 80
+      min-spare: 5
+    accept-count: 100
+spring:
+  datasource:
+    hikari:
+      data-source-properties:
+        ApplicationName: portal-benchmark
+  session:
+    jdbc:
+      cleanup-cron: "-"
+management:
+  server:
+    address: 0.0.0.0
+    port: 9090
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        enrollment.transaction: true
+        enrollment.section.lock.wait: true
+        enrollment.student.lock.wait: true
+        enrollment.section.lock.hold: true
+        enrollment.stage: true
+        hikaricp.connections.acquire: true
+        database.sql: true
+        session.redis: true
+      minimum-expected-value:
+        http.server.requests: 1ms
+        enrollment.transaction: 1ms
+      maximum-expected-value:
+        http.server.requests: 20s
+        enrollment.transaction: 20s
+portal:
+  monitoring:
+    enabled: true
+  authentication:
+    # Explicit fixture preparation budget; verification and bounded slots remain enabled.
+    login-attempts-per-minute: 6000

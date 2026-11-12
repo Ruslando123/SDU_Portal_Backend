@@ -1,0 +1,48 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sdu-flyway
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 120
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sdu-flyway
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: flyway
+          image: sdu-backend:phase9-local
+          imagePullPolicy: IfNotPresent
+          command: ["java", "-Xmx160m", "-Dloader.main=org.example.sdu.registration.bootstrap.database.MigrationCli",
+                    "-cp", "/app/backend.jar", "org.springframework.boot.loader.launch.PropertiesLauncher"]
+          envFrom:
+            - secretRef:
+                name: sdu-backend-migration
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: temporary
+              mountPath: /tmp
+      volumes:
+        - name: temporary
+          emptyDir:
+            sizeLimit: 64Mi

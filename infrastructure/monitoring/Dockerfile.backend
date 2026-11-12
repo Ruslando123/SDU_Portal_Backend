@@ -1,0 +1,5 @@
+FROM eclipse-temurin:21.0.13_9-jre-noble
+WORKDIR /app
+COPY build/libs/sdu-course-registration-backend-0.1.0-SNAPSHOT.jar /app/backend.jar
+USER 10001:10001
+ENTRYPOINT ["java", "-Xms128m", "-Xmx256m", "-XX:MaxMetaspaceSize=192m", "-XX:ReservedCodeCacheSize=64m", "-XX:ActiveProcessorCount=2", "-XX:+ExitOnOutOfMemoryError", "-jar", "/app/backend.jar"]

@@ -1,0 +1,23 @@
+name: sdu-course-registration
+
+services:
+  postgres:
+    image: postgres:18.6-alpine@sha256:123b17998ccaf47e53b502e8c6a1e79afd8f579c6f3eec83c563da026f957395
+    environment:
+      POSTGRES_DB: ${DB_NAME:-sdu_registration}
+      POSTGRES_USER: ${DB_MIGRATION_USERNAME:-portal_migrator}
+      POSTGRES_PASSWORD: ${DB_MIGRATION_PASSWORD:?Set a local migration password in .env}
+    ports:
+      - "127.0.0.1:${DB_PORT:-15432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    stop_grace_period: 20s
+
+volumes:
+  postgres_data:

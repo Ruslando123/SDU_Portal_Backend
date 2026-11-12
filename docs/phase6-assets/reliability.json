@@ -1,0 +1,51 @@
+{
+  "passed": 6,
+  "results": [
+    {
+      "scenario": "kill_before_commit",
+      "actual_signal": "SIGKILL",
+      "client_status": 0,
+      "postgres_step_at_kill": "audit INSERT before COMMIT",
+      "completed_outcomes_after_server_finishes": 0,
+      "same_key_recovery": 201,
+      "recovered_as_replay": false
+    },
+    {
+      "scenario": "kill_during_commit",
+      "actual_signal": "SIGKILL",
+      "client_status": 0,
+      "postgres_step_at_kill": "COMMIT",
+      "completed_outcomes_after_server_finishes": 1,
+      "same_key_recovery": 201,
+      "recovered_as_replay": true
+    },
+    {
+      "scenario": "lost_http_response",
+      "actual_signal": null,
+      "client_status": 0,
+      "same_key_recovery": 201,
+      "exact_body_replay": true
+    },
+    {
+      "scenario": "kill_after_commit",
+      "actual_signal": "SIGKILL",
+      "client_status": 0,
+      "same_key_recovery": 201,
+      "exact_body_replay": true
+    },
+    {
+      "scenario": "database_disconnect",
+      "database_action": "real clean stop and restart",
+      "outage_http_status": 500,
+      "same_key_recovery": 201,
+      "repeated_key_replay": 201
+    },
+    {
+      "scenario": "pool_exhaustion",
+      "pool_max": 2,
+      "acquisition_timeout_ms": 500,
+      "excess_http_status": 500,
+      "recovered_requests": 2
+    }
+  ]
+}

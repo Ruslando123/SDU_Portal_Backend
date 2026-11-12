@@ -1,0 +1,2 @@
+# Optional, used only to export the standalone scientific plot; not part of the backend or k6 runner.
+matplotlib==3.11.2

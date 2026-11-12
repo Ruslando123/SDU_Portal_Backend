@@ -1,0 +1,6 @@
+{
+  "variant": "semester-v1",
+  "seed": 20261106,
+  "counts": {"students": 5000, "courses": 250, "sections": 600, "meetings": 16800},
+  "schedule": {"firstMondayUtc": "2026-11-16T08:00:00+00:00", "weeks": 14, "meetingsPerWeek": 2, "durationMinutes": 60}
+}

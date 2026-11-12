@@ -1,0 +1,6 @@
+# Loopback-only local development. Synthetic authentication only; HTTPS deployments retain the secure default.
+server:
+  servlet:
+    session:
+      cookie:
+        secure: false

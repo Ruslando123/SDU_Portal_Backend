@@ -1,0 +1,34 @@
+# Spring Session JDBC checkout experiment on the private Sidecar
+
+The [direct TLS comparison](mixed-2500-http-ab.md) removed HAProxy connection-pool failures and exposed a different bottleneck. Tomcat reached 80 busy threads and HikariCP reached 16 active and 64 pending. Its PostgreSQL statement export recorded 249,720 session lookups and 166,935 session writes, including 908,692 WAL records attributed to the session update statement. These are counts across the retained run, including preparation. The earlier 1,000-VU capacity result remains separate.
+
+Spring Session JDBC 4.1.1 uses `TransactionOperations.execute` for its session lookups and `executeWithoutResult` for save and delete. The application had routed both through `REQUIRES_NEW`. A lookup reads a complete session and attributes with a single PostgreSQL `SELECT`. The candidate executes that one statement in autocommit, suspending any ambient transaction and releasing the scoped connection at the end of the callback. The existing independent transaction still covers writes. The named Spring Session failure boundary still translates transient failures and prevents a response from escaping with a stale session. Session expiry, per-request account validation, session rotation, CSRF and enrollment transaction semantics retain their original behavior. [Spring Session JDBC transaction and query configuration](https://docs.spring.io/spring-session/reference/configuration/jdbc.html)
+
+The `portal.session.autocommit-reads` setting defaults to `false`. The Modal comparison explicitly selects baseline or autocommit on the same instrumented JAR. Both modes publish bounded Micrometer timers for read and write acquisition, hold and total duration. Hold begins when the callback has its connection and ends after transaction completion and connection cleanup. It includes release overhead. Aggregate hold time divided by the sampled interval estimates the average number of pool connections occupied by that class of operation. The numbers cover only the time between retained metric snapshots inside a hold.
+
+The comparison uses a single backend with PostgreSQL 18.6 Sidecar and the direct verified TLS route. It retains the shared 9 CPU / 17 GiB Sandbox, 4 CPU / 4 GiB generator, prefilled HikariCP pool 16, 5,000 synthetic accounts, 5,040 seats and the same durability settings. Each session mode must qualify at 1,000 VUs before it can advance to a 2,500-VU diagnostic ladder. A 120-second 2,500-VU measurement requires a successful same-mode ladder and its own warm-up gate.
+
+## 1,000-VU controls
+
+Autocommit run `modal-20261108T150750Z-36b49c` reached 1,000 VUs. The 30-second hold recorded 991.53 RPS, p95 1,056.56 ms and 48 client timeouts, with one additional timeout outside the hold. The measurement gate stayed closed. All 22,092 durable mutations reconciled and no active enrollments remained. The instrumented baseline `modal-20261108T151344Z-32a9d9` passed the same hold, then completed 120 seconds at 1,198.90 RPS and p95/p99 of 37.14/63.39 ms without an unexpected outcome. Its SQL gate matched all 71,972 durable mutations and zero active enrollments. The controls used the same JAR and quotas in independently provisioned Sandboxes. The result did not qualify autocommit for a higher test. It does not isolate autocommit as the cause of the difference between the Sandboxes.
+
+At 1,000 VUs the baseline hold recorded session read/write mean connection holds of 0.730/0.727 ms, with mean acquisition of 0.005/0.003 ms and a sampled HikariCP pending peak of zero. The degraded autocommit hold recorded 1.243/2.379 ms held and 20.102/11.133 ms acquiring the connection. Every retained Tomcat sample had 80 busy threads and HikariCP peaked at 64 pending. The acquire times are distinct from the time a session occupied the connection.
+
+Over the same 25.594-second autocommit sample interval, HikariCP recorded 342.044 connection-seconds. Session reads and writes accounted for approximately 48.111 and 61.315 connection-seconds. Enrollment and withdrawal transaction-body timers accounted for 110.646 and 69.659 connection-seconds. These timers use different callback boundaries, so the comparison estimates contributions rather than auditing each physical checkout. Enrollment and withdrawal together occupied more pool time than Spring Session. A session lookup in that hold waited about 16 times longer to acquire a connection than it held it.
+
+## Instrumented 2,500-VU diagnostic
+
+The qualified baseline mode advanced to `modal-20261108T152052Z-f087d8`. The diagnostic reached 2,500 VUs and held them for 30 seconds. That hold returned 41,358 successful responses at 1,378.60 RPS and p95/p99 of 2,373.45/2,466.76 ms. The complete diagnostic recorded 16 client timeouts outside the final hold. The 1,500- and 2,000-VU holds also missed the latency gate. The independent 120-second measurement stayed closed. The autocommit candidate stayed at 1,000 VUs after its failed control.
+
+All six samples in the 2,500-VU hold showed 80 busy Tomcat threads and 64 pending HikariCP borrowers. HikariCP recorded 307.049 connection-seconds over the 25.464-second span. The split below is approximate because the transaction-body and session timers bracket connections differently from Hikari's own usage timer.
+
+| Path | Completed samples | Mean acquisition | Mean hold | Aggregate hold |
+|---|---:|---:|---:|---:|
+| Spring Session read | 53,228 | 14.971 ms | 1.515 ms | 80.631 connection-seconds |
+| Spring Session write | 35,500 | 7.437 ms | 1.456 ms | 51.692 connection-seconds |
+| Enrollment transaction body | 5,912 | — | 15.887 ms | 93.921 connection-seconds |
+| Withdrawal transaction body | 5,918 | — | 10.101 ms | 59.779 connection-seconds |
+
+Spring Session represented about 43% of the observed Hikari usage by this estimate, and enrollment/withdrawal transaction bodies represented about 50%. Session operations add significant checkout volume. Their own average holds were short, with most of the observed session time spent waiting for the shared pool. Mean section lock wait and COMMIT were 0.971 and 0.723 ms during the target hold. The evidence establishes contention between session traffic and longer business transactions. It does not establish that eliminating the explicit transaction for a session SELECT restores throughput. The experimental setting remains disabled by default.
+
+All 49,514 durable outcomes in the 2,500-VU diagnostic reconciled, all eight structural invariants passed and zero active enrollments remained. The two controls and diagnostic together cost $1.01746850 before credits. Modal reported zero billed and cleanup verified zero running Sandboxes or containers. The qualified level on the instrumented build is 1,000 VUs at 1,198.90 RPS. All three reports retain the measured session timings separately in Performance Lab.

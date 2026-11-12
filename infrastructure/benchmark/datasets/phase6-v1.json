@@ -1,0 +1,6 @@
+{
+  "variant": "phase6-v1",
+  "seed": 20261106,
+  "counts": {"students": 5000, "courses": 250, "sections": 600, "meetings": 1200},
+  "schedule": {"firstMondayUtc": "2026-11-16T08:00:00+00:00", "weeks": 2, "meetingsPerWeek": 1, "durationMinutes": 60}
+}

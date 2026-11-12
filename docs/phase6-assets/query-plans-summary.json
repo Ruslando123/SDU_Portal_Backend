@@ -1,0 +1,107 @@
+[
+  {
+    "query": "student-term",
+    "execution_ms": 0.752,
+    "planning_ms": 0.864,
+    "rows": 1.0,
+    "shared_hits": 5,
+    "shared_reads": 0,
+    "nodes": [
+      "LockRows",
+      "Index Scan"
+    ],
+    "indexes": [
+      "uq_student_term_policy"
+    ]
+  },
+  {
+    "query": "section",
+    "execution_ms": 0.624,
+    "planning_ms": 2.29,
+    "rows": 1.0,
+    "shared_hits": 4,
+    "shared_reads": 0,
+    "nodes": [
+      "LockRows",
+      "Index Scan"
+    ],
+    "indexes": [
+      "uq_section_identity_offering_term"
+    ]
+  },
+  {
+    "query": "own-history",
+    "execution_ms": 0.12,
+    "planning_ms": 1.208,
+    "rows": 1.0,
+    "shared_hits": 7,
+    "shared_reads": 0,
+    "nodes": [
+      "Limit",
+      "Sort",
+      "Seq Scan"
+    ],
+    "indexes": []
+  },
+  {
+    "query": "published-offering",
+    "execution_ms": 0.423,
+    "planning_ms": 0.701,
+    "rows": 1.0,
+    "shared_hits": 3,
+    "shared_reads": 0,
+    "nodes": [
+      "Index Scan"
+    ],
+    "indexes": [
+      "uq_offering_term_course"
+    ]
+  },
+  {
+    "query": "published-sections",
+    "execution_ms": 0.204,
+    "planning_ms": 0.522,
+    "rows": 3.0,
+    "shared_hits": 8,
+    "shared_reads": 0,
+    "nodes": [
+      "Limit",
+      "Sort",
+      "Index Scan"
+    ],
+    "indexes": [
+      "uq_section_term_offering_code"
+    ]
+  },
+  {
+    "query": "meetings",
+    "execution_ms": 0.612,
+    "planning_ms": 1.501,
+    "rows": 4.0,
+    "shared_hits": 12,
+    "shared_reads": 0,
+    "nodes": [
+      "Sort",
+      "Bitmap Heap Scan",
+      "Bitmap Index Scan"
+    ],
+    "indexes": [
+      "uq_meeting_section_interval"
+    ]
+  },
+  {
+    "query": "idempotency-absent-scope",
+    "execution_ms": 0.402,
+    "planning_ms": 1.566,
+    "rows": 0.0,
+    "shared_hits": 4,
+    "shared_reads": 0,
+    "nodes": [
+      "LockRows",
+      "Index Scan"
+    ],
+    "indexes": [
+      "uq_idempotency_scope"
+    ]
+  }
+]
